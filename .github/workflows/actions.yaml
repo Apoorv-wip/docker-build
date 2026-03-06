@@ -10,7 +10,7 @@ jobs:
 
   steps: 
    - name: Checkout code
-     uses: actions/checout@v4
+     uses: actions/checkout@v4
 
    - name: Setup Docker Buildx
      uses: docker/sertup-buildx-action@v3
