@@ -1,4 +1,4 @@
-name: Build Docker File
+name: Build Docker File and have it saved
 
 on: 
  push: 
