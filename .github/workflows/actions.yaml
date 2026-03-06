@@ -1,0 +1,30 @@
+name: Build Docker File
+
+on: 
+ push: 
+  branches: [ "main"]
+
+jobs:
+ build:
+  runs-on: [self-hosted]
+
+  steps: 
+   - name: Checkout code
+     uses: actions/checout@v4
+
+   - name: Setup Docker Buildx
+     uses: docker/sertup-buildx-action@v3
+
+   - name: Build Docker Image
+     run:  |
+      docker build -t myapp:latest
+
+   - name: Save image to tar
+     run:  |
+      docker save myapp:latest =o myapp-image.tar
+
+   - name: Upload artifact
+     uses: actions/upload-artifact@v4
+     with: 
+      name: docker-image
+      path: myapp-image.tar
