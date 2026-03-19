@@ -3,12 +3,14 @@ name: Build and publish to GHCR
 on:
   push:
     tags:
-      - "v*.*.*" # e.g., v1.0.0
+      - "v*.*.*"  # e.g., v1.0.0
+    branches:
+      - main      # remove if you only want to build on tags
   workflow_dispatch:
 
 jobs:
   publish:
-    runs-on: self-hosted
+    runs-on: self-hosted  # or ubuntu-latest
     permissions:
       contents: read
       packages: write
@@ -24,16 +26,23 @@ jobs:
         run: |
           echo "${{ github.token }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
 
-      # Compute the tag safely and export IMAGE to the job env
-      - name: Compute image tag
+      - name: Compute image refs (lowercase owner + tag)
         run: |
+          # Lowercase the owner (OCI requires lowercase)
           OWNER_LC="$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')"
+
+          # Decide the tag
           if [ "${{ github.ref_type }}" = "tag" ]; then
-            TAG="${{ github.ref_name }}"
+            TAG="${{ github.ref_name }}"   # e.g., v1.0.2
+            ALSO_LATEST="true"
           else
             TAG="dev"
+            ALSO_LATEST="false"
           fi
+
+          echo "OWNER_LC=$OWNER_LC" >> "$GITHUB_ENV"
           echo "TAG=$TAG" >> "$GITHUB_ENV"
+          echo "ALSO_LATEST=$ALSO_LATEST" >> "$GITHUB_ENV"
           echo "IMAGE=ghcr.io/${OWNER_LC}/${{ env.IMAGE_NAME }}:${TAG}" >> "$GITHUB_ENV"
 
       - name: Build image
@@ -42,12 +51,16 @@ jobs:
       - name: Push image
         run: docker push "$IMAGE"
 
-      - name: Also tag :latest on version tags (optional)
-        if: ${{ github.ref_type == 'tag' }}
+      - name: Tag and push :latest (for release tags)
+        if: ${{ env.ALSO_LATEST == 'true' }}
         run: |
-          LATEST="ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:latest"
+          LATEST="ghcr.io/${OWNER_LC}/${{ env.IMAGE_NAME }}:latest"
           docker tag "$IMAGE" "$LATEST"
           docker push "$LATEST"
 
       - name: Output
-        run: echo "Pushed $IMAGE"
+        run: |
+          echo "Pushed: $IMAGE"
+          if [ "$ALSO_LATEST" = "true" ]; then
+            echo "Also pushed: ghcr.io/${OWNER_LC}/${{ env.IMAGE_NAME }}:latest"
+          fi
