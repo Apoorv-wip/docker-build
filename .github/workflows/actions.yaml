@@ -1,51 +1,52 @@
 name: Build and publish to GHCR
 
 on:
- push:
-  tags:
-   - "v*.*.*" #could be v.1.0.0
- workflow_dispatch:
+  push:
+    tags:
+      - "v*.*.*" # e.g., v1.0.0
+  workflow_dispatch:
 
-job:
- publish:
-  runs-on: [self-hosted]
-  permissions:
-   contents: read
-   packages: write 
+jobs:
+  publish:
+    runs-on: self-hosted
+    permissions:
+      contents: read
+      packages: write
 
-  env: 
-   IMAGE_NAME: myapp
+    env:
+      IMAGE_NAME: myapp
 
-  steps: 
-   - name: Checkout Code 
-     uses: actions/checkout@v4 
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-   - name: Log in GHCR 
-     run: |
-      echo "${{ github.token }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+      - name: Log in to GHCR
+        run: |
+          echo "${{ github.token }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
 
-   - name: Build Images 
-     env: 
-      TAG: ${{ github.ref_type == 'tag' && github.ref_name || 'dev' }}
-     run: |
-      IMAGE="ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:${TAG}"
-          docker build -t "$IMAGE" .
-          echo "IMAGE=$IMAGE" >> $GITHUB_ENV
+      # Compute the tag safely and export IMAGE to the job env
+      - name: Compute image tag
+        run: |
+          if [ "${{ github.ref_type }}" = "tag" ]; then
+            TAG="${{ github.ref_name }}"
+          else
+            TAG="dev"
+          fi
+          echo "TAG=$TAG" >> "$GITHUB_ENV"
+          echo "IMAGE=ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:${TAG}" >> "$GITHUB_ENV"
 
-   
-   - name: Push image
-      run: docker push "$IMAGE"
+      - name: Build image
+        run: docker build -t "$IMAGE" .
 
-   - name: Also tag :latest on version tags (optional)
+      - name: Push image
+        run: docker push "$IMAGE"
+
+      - name: Also tag :latest on version tags (optional)
         if: ${{ github.ref_type == 'tag' }}
         run: |
           LATEST="ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:latest"
           docker tag "$IMAGE" "$LATEST"
           docker push "$LATEST"
 
-   - name: Output
+      - name: Output
         run: echo "Pushed $IMAGE"
-
-
-      
-
