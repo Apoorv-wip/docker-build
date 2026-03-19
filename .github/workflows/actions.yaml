@@ -14,7 +14,6 @@ jobs:
       packages: write
 
     env:
-      OWNER_LC: ${{ toLower(github.repository_owner) }}
       IMAGE_NAME: myapp
 
     steps:
@@ -28,13 +27,14 @@ jobs:
       # Compute the tag safely and export IMAGE to the job env
       - name: Compute image tag
         run: |
+          OWNER_LC="$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')"
           if [ "${{ github.ref_type }}" = "tag" ]; then
             TAG="${{ github.ref_name }}"
           else
             TAG="dev"
           fi
           echo "TAG=$TAG" >> "$GITHUB_ENV"
-          echo "IMAGE=ghcr.io/${{ env.OWNER_LC }}/${{ env.IMAGE_NAME }}:${TAG}" >> "$GITHUB_ENV"
+          echo "IMAGE=ghcr.io/${OWNER_LC}/${{ env.IMAGE_NAME }}:${TAG}" >> "$GITHUB_ENV"
 
       - name: Build image
         run: docker build -t "$IMAGE" .
